@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# realpath, not __dir__: the CLI runs through a ~/.local/bin/xmplaylist symlink.
+ROOT = File.expand_path("..", File.dirname(File.realpath(__FILE__)))
+$LOAD_PATH.unshift File.join(ROOT, "lib")
+
+require "xmplaylist_cli/env_file"
+require "xmplaylist_cli/error"
+require "xmplaylist_cli/version"
+
+# .env and .env.local are gitignored symlinks to the secrets store. Exported
+# variables are never overridden.
+XmplaylistCli::EnvFile.load(ROOT)
+
+COMMANDS = %w[].freeze
+WRITE_COMMANDS = %w[].freeze
+
+def usage(status = 1)
+  puts <<~USAGE
+    Usage: xmplaylist [-j|--json] <command> [args] [options]
+
+    Global flags:
+      -j, --json     JSON envelope output: {"ok": true, "command": ..., "data": ...}
+      --version      Print the version
+      -h, --help     This help
+
+    Exit codes: 0 ok, 1 usage, 2 auth or paid plan, 3 not found, 4 API error.
+  USAGE
+  exit status
+end
+
+argv = ARGV.dup
+case argv.first
+when "--version" then puts "xmplaylist #{XmplaylistCli::VERSION}"
+when "-h", "--help", "help" then usage(0)
+when nil then usage
+else
+  warn "xmplaylist: unknown command: #{argv.first}"
+  usage
+end
