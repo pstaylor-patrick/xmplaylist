@@ -6,7 +6,9 @@ require "json"
 require "stringio"
 require "xmplaylist_cli/command_support"
 require "xmplaylist_cli/formatter"
-%w[stations station newest most_heard movers rankings artist_rankings track feed channel_updates update_channels]
+%w[stations station newest most_heard movers rankings artist_rankings track feed channel_updates update_channels
+   search search_insights labels recent_searches artists artist artist_peers artist_history artist_rank hot
+   artist_updates]
   .each { |f| require "xmplaylist_cli/commands/#{f}" }
 
 class ReadCommandsSpec < Minitest::Test
@@ -136,5 +138,88 @@ class ReadCommandsSpec < Minitest::Test
       { id: "station-1", name: "Example Rock", number: "101", deeplink: "examplerock", latestDate: "2026-01-01" }
     ] })
     assert_match(/examplerock\s+101\s+Example Rock\s+2026-01-01/, run_cmd(C::UpdateChannels, [], client: fake))
+  end
+
+  def test_search_maps_filters_and_resolves_station
+    fake = client("/api/search" => { results: [{ id: "play-1", timestamp: "2026-01-01T12:00:00.000Z" }] })
+    run_cmd(C::Search, ["--artist", "Placeholder Artist", "--station", "101", "--limit", "100", "--time-ago", "3600"],
+            client: fake)
+    assert_equal({ "artistName" => "Placeholder Artist", "station" => "examplerock", "limit" => 100, "timeAgo" => "3600" },
+                 fake.calls.last.query)
+  end
+
+  def test_search_rejects_bad_limit_and_match
+    assert_raises(XmplaylistCli::UsageError) { run_cmd(C::Search, ["--limit", "7"], client: client) }
+    assert_raises(XmplaylistCli::UsageError) { run_cmd(C::Search, ["--track-match", "fuzzy"], client: client) }
+    assert_raises(XmplaylistCli::UsageError) { run_cmd(C::Search, ["--start", "Jan 1"], client: client) }
+  end
+
+  def test_search_all_follows_pages
+    pages = ->(req) { req.query["page"] == 2 ? { results: [{ id: "b" }], next: nil } : { results: [{ id: "a" }], next: "x" } }
+    fake = FakeClient.new(fetch: { "/api/search" => pages })
+    body = JSON.parse(run_cmd(C::Search, ["--track", "Song", "--all"], client: fake, json: true))
+    assert_equal %w[a b], body["data"]["results"].map { |r| r["id"] }
+  end
+
+  def test_search_insights_show
+    fake = FakeClient.new(fetch: { "/api/search/insights" => { totalPlays: 12 } })
+    assert_match(/totalPlays:\s+12/, run_cmd(C::SearchInsights, ["--isrc", "XX0000000000"], client: fake))
+    assert_equal({ "isrc" => "XX0000000000" }, fake.calls.last.query)
+  end
+
+  def test_labels
+    fake = FakeClient.new(fetch: { "/api/search/labels" => [{ name: "Example Records" }] })
+    assert_match(/Example Records/, run_cmd(C::Labels, ["ex", "--limit", "5"], client: fake))
+    assert_equal({ "q" => "ex", "limit" => 5 }, fake.calls.last.query)
+    assert_raises(XmplaylistCli::UsageError) { run_cmd(C::Labels, ["ex", "--limit", "26"], client: fake) }
+    assert_raises(XmplaylistCli::UsageError) { run_cmd(C::Labels, ["e"], client: fake) }
+  end
+
+  def test_recent_searches
+    fake = FakeClient.new(fetch: { "/api/search/recent" => [{ id: "s-1", query: "placeholder" }] })
+    assert_match(/s-1\s+placeholder/, run_cmd(C::RecentSearches, [], client: fake))
+  end
+
+  def test_artists_and_full
+    fake = FakeClient.new(fetch: { "/api/artists" => [{ id: "a1", name: "Placeholder Artist" }],
+                                   "/api/artists/search" => [{ id: "a1", name: "Placeholder Artist" }] })
+    assert_match(/a1\s+Placeholder Artist/, run_cmd(C::Artists, ["place"], client: fake))
+    run_cmd(C::Artists, ["place", "--full"], client: fake)
+    assert_equal ["/api/artists/search", { "q" => "place" }], [fake.calls.last.path, fake.calls.last.query]
+  end
+
+  def test_artist_peers_and_history
+    fake = FakeClient.new(fetch: { "/api/artists/a1" => { name: "Placeholder Artist" },
+                                   "/api/artists/a1/peers" => [{ name: "Peer" }],
+                                   "/api/artists/a1/history/tracks" => [{ title: "T" }],
+                                   "/api/artists/a1/history/stations" => [{ station: "S" }] })
+    assert_match(/name:\s+Placeholder Artist/, run_cmd(C::Artist, ["a1"], client: fake))
+    assert_match(/Peer/, run_cmd(C::ArtistPeers, ["a1"], client: fake))
+    run_cmd(C::ArtistHistory, ["a1"], client: fake)
+    assert_equal "/api/artists/a1/history/tracks", fake.calls.last.path
+    run_cmd(C::ArtistHistory, ["a1", "--stations"], client: fake)
+    assert_equal "/api/artists/a1/history/stations", fake.calls.last.path
+  end
+
+  def test_artist_rank_resolves_station_id
+    fake = client("/api/artists/a1/station-rank" => { rank: 3 })
+    assert_match(/rank:\s+3/, run_cmd(C::ArtistRank, ["a1", "--station", "Example Rock"], client: fake))
+    assert_equal({ "stationId" => "station-1" }, fake.calls.last.query)
+    assert_raises(XmplaylistCli::UsageError) { run_cmd(C::ArtistRank, ["a1"], client: fake) }
+  end
+
+  def test_hot_columns_and_full
+    row = { spotifyArtistId: "a1", name: "Placeholder Artist", spins: 9, spinGain: 4 }
+    fake = FakeClient.new(fetch: { "/api/artists/hot" => [row], "/api/artists/hot/full" => [row] })
+    assert_match(/a1\s+Placeholder Artist\s+9\s+4/, run_cmd(C::Hot, [], client: fake))
+    run_cmd(C::Hot, ["--full"], client: fake)
+    assert_equal "/api/artists/hot/full", fake.calls.last.path
+  end
+
+  def test_artist_updates_and_preview
+    fake = FakeClient.new(fetch: { "/api/artists/a1/updates" => { enabled: true },
+                                   "/api/artists/a1/updates/preview" => { subject: "Preview" } })
+    assert_match(/enabled:\s+true/, run_cmd(C::ArtistUpdates, ["a1"], client: fake))
+    assert_match(/subject:\s+Preview/, run_cmd(C::ArtistUpdates, ["a1", "--preview"], client: fake))
   end
 end
