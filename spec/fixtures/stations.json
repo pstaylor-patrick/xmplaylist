@@ -1,0 +1,4 @@
+{"count": 2, "next": null, "previous": null, "results": [
+  {"id": "station-1", "name": "Example Rock", "number": "101", "deeplink": "examplerock", "genres": ["rock"]},
+  {"id": "station-2", "name": "Placeholder Pop", "number": "102", "deeplink": "placeholderpop", "genres": ["pop"]}
+]}

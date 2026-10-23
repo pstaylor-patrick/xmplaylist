@@ -27,3 +27,10 @@ module XmplaylistCli
   class NotFoundError < Error; end
   class ApiError < Error; end
 end
+
+module XmplaylistCli
+  class RateLimitError < ApiError; end  # 429 after the one retry (exit 4)
+  class AmbiguousError < UsageError; end # a name matched several records (exit 1)
+  class GuardRefused < UsageError; end   # destructive command, stdin not a TTY, no --yes
+  class Aborted < UsageError; end        # typed confirmation did not match
+end
