@@ -1,0 +1,3 @@
+{"timeZone": "America/Chicago", "channel": null, "results": [
+  {"id": "update-1", "channelId": "station-1", "channelName": "Example Rock", "channelNumber": "101", "kind": "active", "before": null, "after": null, "date": "2026-01-01", "channelDeeplink": "examplerock"}
+], "nextOffset": null}

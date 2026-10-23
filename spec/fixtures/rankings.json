@@ -1,0 +1,3 @@
+{"period": {"current": {"start": "2026-01-01", "end": "2026-01-31"}}, "results": [
+  {"track": {"id": "track-1", "title": "Placeholder Song", "artists": ["Placeholder Artist"]}, "plays": 40, "playsPrev": 30, "rank": 1, "rankPrev": 2, "rankChange": 1}
+]}

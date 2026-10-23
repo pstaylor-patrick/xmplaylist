@@ -8,13 +8,22 @@ $LOAD_PATH.unshift File.join(ROOT, "lib")
 require "xmplaylist_cli/env_file"
 require "xmplaylist_cli/error"
 require "xmplaylist_cli/version"
+require "xmplaylist_cli/client"
+require "xmplaylist_cli/command_support"
+require "xmplaylist_cli/formatter"
 
 # .env and .env.local are gitignored symlinks to the secrets store. Exported
 # variables are never overridden.
 XmplaylistCli::EnvFile.load(ROOT)
 
-COMMANDS = %w[].freeze
-WRITE_COMMANDS = %w[].freeze
+COMMANDS = %w[
+  stations station newest most-heard movers rankings artist-rankings track
+  feed channel-updates update-channels
+].freeze
+WRITE_COMMANDS = %w[
+  stations station newest most-heard movers rankings artist-rankings track
+  feed channel-updates update-channels
+].freeze
 
 def usage(status = 1)
   puts <<~USAGE
@@ -25,17 +34,85 @@ def usage(status = 1)
       --version      Print the version
       -h, --help     This help
 
+    Stations (CH is a deeplink, name, or channel number):
+      stations [--extended]           Every channel (--extended is paid)
+      station CH [-n N] [--all] [--since-ms MS]
+                                      Recent plays, newest first; --all follows pages (cap 50)
+      newest CH                       Tracks the channel played for the first time
+      most-heard CH [WINDOW]          Most-played tracks
+      movers CH [WINDOW] [--decliners]
+                                      Biggest play-count gainers (or decliners)
+      rankings CH [WINDOW]            Track ranks against the previous period
+      artist-rankings CH [WINDOW]     Artist ranks against the previous period
+      track CH TRACK_ID               One track's detail on a channel
+      WINDOW is one of --days N, --year YYYY, --month YYYY-MM, --week YYYY-MM-DD
+      (past 60 days and calendar windows are paid).
+
+    Feed and channel updates:
+      feed                            The latest plays across every channel
+      channel-updates [--days 1-30] [--channel CH] [--name S] [--offset N] [--all]
+                                      Daily channel lineup changes
+      update-channels                 Channels with update history
+
+    Environment:
+      XMPLAYLIST_API_KEY   API key (loaded from the repo .env symlink); public reads need none
+      XMPLAYLIST_DEBUG     Set to 1 to print method, path, and status (never the key)
+      NO_COLOR             Disable color in human output
+
     Exit codes: 0 ok, 1 usage, 2 auth or paid plan, 3 not found, 4 API error.
   USAGE
   exit status
 end
 
-argv = ARGV.dup
-case argv.first
-when "--version" then puts "xmplaylist #{XmplaylistCli::VERSION}"
+def extract_globals(argv)
+  cut = argv.index("--") || argv.size
+  json = false
+  rest = argv[0...cut].reject { |a| (a == "-j" || a == "--json") && (json = true) }
+  [json, rest + argv[cut..]]
+end
+
+def command_class(cmd)
+  require "xmplaylist_cli/commands/#{cmd.tr('-', '_')}"
+  XmplaylistCli::Commands.const_get(cmd.split("-").map(&:capitalize).join)
+end
+
+json, argv = extract_globals(ARGV.dup)
+ARGV.clear
+cmd = argv.shift
+case cmd
+when "--version" then puts "xmplaylist #{XmplaylistCli::VERSION}"; exit 0
 when "-h", "--help", "help" then usage(0)
 when nil then usage
-else
-  warn "xmplaylist: unknown command: #{argv.first}"
+end
+unless COMMANDS.include?(cmd)
+  warn "xmplaylist: unknown command: #{cmd}"
   usage
+end
+
+formatter = json ? XmplaylistCli::JsonFormatter : XmplaylistCli::Formatter
+
+def fail_with(formatter, cmd, code, error, status)
+  formatter.error(cmd, code, error.message)
+  $stderr.puts error.backtrace.first(5).join("\n") if ENV["XMPLAYLIST_DEBUG"] == "1" && error.backtrace
+  exit status
+end
+
+begin
+  ctx = XmplaylistCli::Context.new(client: XmplaylistCli::Client.new, formatter: formatter)
+  command_class(cmd).run(ctx, argv)
+rescue XmplaylistCli::AuthError => e
+  fail_with(formatter, cmd, e.is_a?(XmplaylistCli::PaidPlanError) ? "paid_plan" : "auth", e, 2)
+rescue XmplaylistCli::NotFoundError => e
+  fail_with(formatter, cmd, "not_found", e, 3)
+rescue XmplaylistCli::ApiError => e
+  fail_with(formatter, cmd, "api_error", e, 4)
+rescue XmplaylistCli::UsageError => e
+  fail_with(formatter, cmd, "usage", e, 1)
+rescue Errno::EPIPE
+  exit 0
+rescue Interrupt
+  $stderr.puts
+  exit 130
+rescue StandardError => e
+  fail_with(formatter, cmd, "error", e, 1)
 end

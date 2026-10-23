@@ -1,0 +1,3 @@
+{"results": [
+  {"artist": {"spotifyArtistId": "artist-1", "name": "Placeholder Artist"}, "songs": 3, "topTrack": {"id": "track-1", "title": "Placeholder Song"}, "plays": 90, "playsPrev": 80, "rank": 1, "rankPrev": 1, "rankChange": 0}
+]}

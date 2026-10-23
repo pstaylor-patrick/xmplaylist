@@ -52,6 +52,16 @@ module XmplaylistCli
       stations: { "deeplink" => :deeplink, "number" => :number, "name" => :name, "genres" => :genres },
       history: { "time" => :timestamp, "title" => [:track, :title], "artists" => [:track, :artists] },
       feed: { "time" => :timestamp, "channel" => :channelId, "title" => [:track, :title], "artists" => [:track, :artists] },
+      most_heard: { "plays" => :plays, "title" => [:track, :title], "artists" => [:track, :artists] },
+      movers: { "change" => :change, "now" => :currentPlays, "before" => :previousPlays, "title" => [:track, :title],
+                "artists" => [:track, :artists] },
+      rankings: { "rank" => :rank, "prev" => :rankPrev, "plays" => :plays, "title" => [:track, :title],
+                  "artists" => [:track, :artists] },
+      artist_rankings: { "rank" => :rank, "prev" => :rankPrev, "plays" => :plays, "songs" => :songs,
+                         "artist" => [:artist, :name], "top track" => [:topTrack, :title] },
+      channel_updates: { "date" => :date, "deeplink" => :channelDeeplink, "number" => :channelNumber,
+                         "name" => :channelName, "kind" => :kind },
+      update_channels: { "deeplink" => :deeplink, "number" => :number, "name" => :name, "latest" => :latestDate },
       hot: { "id" => :spotifyArtistId, "name" => :name, "spins" => :spins, "gain" => :spinGain }
     }.freeze
 
