@@ -21,8 +21,15 @@ COMMANDS = %w[
   feed channel-updates update-channels
   search search-insights labels recent-searches search-export
   artists artist artist-peers artist-history artist-rank hot artist-updates artist-updates-set
+  report
+  membership roster roster-show roster-add roster-remove roster-link roster-peers roster-report
+  roster-catalog roster-sparklines roster-history roster-rank
+  subs sub sub-create sub-update sub-delete
+  usage track-report
 ].freeze
-WRITE_COMMANDS = %w[search-export artist-updates-set].freeze
+WRITE_COMMANDS = %w[
+  search-export artist-updates-set roster-add roster-remove roster-link sub-create sub-update sub-delete track-report
+].freeze
 
 def usage(status = 1)
   puts <<~USAGE
@@ -76,6 +83,39 @@ def usage(status = 1)
       artist-updates ID [--preview]   Update-email setting (or email preview)
       artist-updates-set ID --on|--off [-d]
                                       Write: turn update emails on or off
+
+    Reports (paid):
+      report --list                   Every report kind and its flags
+      report KIND [ID] [--FLAG V ...] e.g. report most-played --days 30
+
+    Roster (ID is a roster artist id):
+      membership                      Your roster plan and seats
+      roster                          Roster artists
+      roster-show ID                  One roster artist
+      roster-add NAME [--spotify ID] [-d]
+                                      Write: add an artist
+      roster-remove ID [--yes] [-d]   Write: remove an artist (typed-id guard)
+      roster-link ID [--show] [-d]    Show, or write: switch to the linked artist
+      roster-peers ID                 Artists played alongside
+      roster-report ID [--days 7|30|90|365]
+      roster-catalog ID [--days 7|30|90|365]
+      roster-sparklines ID [--days 7|30|90|365]
+      roster-history ID [--stations]  Play history by track (or station)
+      roster-rank ID --station CH     Current rank on one channel
+
+    Subscriptions:
+      subs                            Your subscriptions
+      sub ID                          One subscription
+      sub-create --file F | --stdin [-d]
+                                      Write: create from a JSON object
+      sub-update ID --file F | --stdin [-d]
+                                      Write: patch from a JSON object
+      sub-delete ID [--yes] [-d]      Write: delete (typed-id guard)
+
+    Misc:
+      usage                           API requests remaining today
+      track-report TRACK_ID --link URL [-d]
+                                      Write: report a corrected track link
 
     Environment:
       XMPLAYLIST_API_KEY   API key (loaded from the repo .env symlink); public reads need none
