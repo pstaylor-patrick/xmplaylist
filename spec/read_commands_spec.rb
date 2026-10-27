@@ -144,7 +144,7 @@ class ReadCommandsSpec < Minitest::Test
     fake = client("/api/search" => { results: [{ id: "play-1", timestamp: "2026-01-01T12:00:00.000Z" }] })
     run_cmd(C::Search, ["--artist", "Placeholder Artist", "--station", "101", "--limit", "100", "--time-ago", "3600"],
             client: fake)
-    assert_equal({ "artistName" => "Placeholder Artist", "station" => "examplerock", "limit" => 100, "timeAgo" => "3600" },
+    assert_equal({ "artistName" => "Placeholder Artist", "station" => "station-1", "limit" => 100, "timeAgo" => "3600" },
                  fake.calls.last.query)
   end
 

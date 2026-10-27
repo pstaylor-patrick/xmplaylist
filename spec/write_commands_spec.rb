@@ -45,7 +45,7 @@ class WriteCommandsSpec < Minitest::Test
     out = run_cmd(C::SearchExport, ["--artist", "placeholder", "--station", "101"], client: fake)
     assert_equal "a,b\n1,2\n", out
     assert_equal 1, fake.performed.size
-    assert_equal({ artistName: "placeholder", station: "examplerock" }, fake.performed.first.body)
+    assert_equal({ artistName: "placeholder", station: "station-1" }, fake.performed.first.body)
   end
 
   def test_search_export_csv_to_file
