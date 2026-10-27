@@ -29,10 +29,11 @@ module XmplaylistCli
         o.on("--end DATE", "End date (YYYY-MM-DD)") { |v| f[:end] = date!(v, "--end") }
       end
 
-      # The filters with --station resolved to a deeplink (one GET /api/station).
+      # The filters with --station resolved to the channel id (one GET /api/station).
+      # /api/search rejects a deeplink or number with "Invalid station" (400).
       def self.resolve(ctx, opts)
         filters = opts[:filters].dup
-        filters[:station] = CommandSupport.channel(ctx, filters[:station])[:deeplink] if filters[:station]
+        filters[:station] = CommandSupport.channel(ctx, filters[:station])[:id] if filters[:station]
         filters
       end
 
